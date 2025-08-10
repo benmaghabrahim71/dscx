@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stress Panel - MHDDoS Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0a0a0a; color: #ffffff; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 2.5rem; color: #00ff88; margin-bottom: 10px; text-shadow: 0 0 10px #00ff88; }
+        .header p { font-size: 1.1rem; color: #cccccc; }
+        .main-content { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .attack-config { background: #1a1a1a; border-radius: 15px; padding: 25px; border: 1px solid #333; }
+        .attack-status { background: #1a1a1a; border-radius: 15px; padding: 25px; border: 1px solid #333; }
+        .section-title { font-size: 1.3rem; color: #00ff88; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .attack-type-buttons { display: flex; gap: 10px; margin-bottom: 25px; }
+        .attack-type-btn { flex: 1; padding: 12px; background: #333; border: none; color: #fff; border-radius: 8px; cursor: pointer; transition: all 0.3s; font-size: 1rem; }
+        .attack-type-btn.active { background: #00ff88; color: #000; }
+        .attack-type-btn:hover { background: #444; }
+        .attack-type-btn.active:hover { background: #00cc6a; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #cccccc; font-weight: 500; }
+        .form-group input, .form-group select { width: 100%; padding: 12px; background: #2a2a2a; border: 1px solid #444; border-radius: 8px; color: #fff; font-size: 1rem; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #00ff88; box-shadow: 0 0 5px #00ff88; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .slider-container { display: flex; align-items: center; gap: 15px; }
+        .slider { flex: 1; height: 6px; background: #333; border-radius: 3px; outline: none; }
+        .slider::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; background: #00ff88; border-radius: 50%; cursor: pointer; }
+        .slider::-moz-range-thumb { width: 20px; height: 20px; background: #00ff88; border-radius: 50%; cursor: pointer; border: none; }
+        .slider-value { min-width: 50px; text-align: center; font-weight: bold; color: #00ff88; }
+        .send-attack-btn { width: 100%; padding: 15px; background: linear-gradient(45deg, #ff4444, #ff6666); border: none; color: #fff; border-radius: 10px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: all 0.3s; text-transform: uppercase; letter-spacing: 1px; }
+        .send-attack-btn:hover { background: linear-gradient(45deg, #ff2222, #ff4444); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 68, 68, 0.3); }
+        .status-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 15px; background: #2a2a2a; border-radius: 10px; }
+        .status-text { color: #00ff88; font-weight: bold; }
+        .status-buttons { display: flex; gap: 10px; }
+        .status-btn { padding: 8px 15px; background: #ff4444; border: none; color: #fff; border-radius: 6px; cursor: pointer; font-size: 0.9rem; transition: all 0.3s; }
+        .status-btn:hover { background: #ff2222; }
+        .status-btn.scheduled { background: #ff8800; }
+        .status-btn.scheduled:hover { background: #ff6600; }
+        .tab-buttons { display: flex; gap: 5px; margin-bottom: 20px; }
+        .tab-btn { flex: 1; padding: 12px; background: #333; border: none; color: #fff; border-radius: 8px 8px 0 0; cursor: pointer; transition: all 0.3s; }
+        .tab-btn.active { background: #00ff88; color: #000; }
+        .tab-content { background: #2a2a2a; border-radius: 0 0 10px 10px; padding: 20px; min-height: 300px; }
+        .attacks-table { width: 100%; border-collapse: collapse; }
+        .attacks-table th, .attacks-table td { padding: 12px; text-align: left; border-bottom: 1px solid #444; }
+        .attacks-table th { background: #333; color: #00ff88; font-weight: bold; }
+        .attacks-table tr:hover { background: #3a3a3a; }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+        .status-running { background: #00ff88; color: #000; }
+        .status-finished { background: #ff8800; color: #000; }
+        .status-stopped { background: #ff4444; color: #fff; }
+        .action-btn { padding: 4px 8px; background: #ff4444; border: none; color: #fff; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        .action-btn:hover { background: #ff2222; }
+        .no-attacks { text-align: center; color: #666; padding: 40px; font-style: italic; }
+        .table-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; color: #666; font-size: 0.9rem; }
+        .pagination { display: flex; gap: 10px; }
+        .pagination button { padding: 5px 10px; background: #333; border: none; color: #fff; border-radius: 4px; cursor: pointer; }
+        .pagination button:hover { background: #444; }
+        .entries-select { padding: 5px; background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 4px; }
+        .method-select { max-height: 200px; overflow-y: auto; }
+        .method-option { padding: 8px 12px; cursor: pointer; transition: background 0.2s; }
+        .method-option:hover { background: #3a3a3a; }
+        .method-option.selected { background: #00ff88; color: #000; }
+        .loading { display: none; text-align: center; padding: 20px; }
+        .spinner { border: 3px solid #333; border-top: 3px solid #00ff88; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .notification { position: fixed; top: 20px; right: 20px; padding: 15px 20px; border-radius: 8px; color: #fff; font-weight: bold; z-index: 1000; transform: translateX(400px); transition: transform 0.3s; }
+        .notification.show { transform: translateX(0); }
+        .notification.success { background: #00ff88; color: #000; }
+        .notification.error { background: #ff4444; }
+        .notification.info { background: #0088ff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Stress Panel</h1>
+            <p>Unleash Layer 4, Layer 7 and Telegram Session attacks with precision.</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Attack Configuration -->
+            <div class="attack-config">
+                <h2 class="section-title">Attack Configuration</h2>
+                
+                <div class="attack-type-buttons">
+                    <button class="attack-type-btn active" data-type="layer4">Layer 4</button>
+                    <button class="attack-type-btn" data-type="layer7">Layer 7</button>
+                    <button class="attack-type-btn" data-type="telegram">📤</button>
+                </div>
+
+                <form id="attackForm">
+                    <div class="form-group">
+                        <label for="target">Host:</label>
+                        <input type="text" id="target" name="target" value="74.74.74.74" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="port">Port:</label>
+                        <input type="text" id="port" name="port" value="80 (0 - random)" placeholder="80">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="duration">Time:</label>
+                        <input type="number" id="duration" name="duration" value="60" min="1" max="3600">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="method">Attack Method:</label>
+                        <select id="method" name="method" required>
+                            <option value="">Select Method</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="threads">Concurrents:</label>
+                        <div class="slider-container">
+                            <input type="range" id="threads" name="threads" min="1" max="1000" value="1" class="slider">
+                            <span class="slider-value" id="threadsValue">1</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="rpcGroup" style="display: none;">
+                        <label for="rpc">RPC (Requests Per Connection):</label>
+                        <div class="slider-container">
+                            <input type="range" id="rpc" name="rpc" min="1" max="100" value="1" class="slider">
+                            <span class="slider-value" id="rpcValue">1</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="proxyGroup" style="display: none;">
+                        <label for="proxy_type">Proxy Type:</label>
+                        <select id="proxy_type" name="proxy_type">
+                            <option value="0">All</option>
+                            <option value="1">HTTP</option>
+                            <option value="4">SOCKS4</option>
+                            <option value="5">SOCKS5</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="send-attack-btn">Send Attack</button>
+                </form>
+            </div>
+
+            <!-- Attack Status -->
+            <div class="attack-status">
+                <div class="status-bar">
+                    <span class="status-text">Running attacks: <span id="runningCount">0</span></span>
+                    <div class="status-buttons">
+                        <button class="status-btn scheduled" onclick="showScheduled()">📅 SCHEDULED ATTACKS</button>
+                        <button class="status-btn" onclick="stopAllAttacks()">⏹️ STOP ALL</button>
+                    </div>
+                </div>
+
+                <div class="tab-buttons">
+                    <button class="tab-btn active" data-tab="running">Running Attacks</button>
+                    <button class="tab-btn" data-tab="scheduled">Scheduled Attacks</button>
+                </div>
+
+                <div class="tab-content" id="runningTab">
+                    <table class="attacks-table" id="attacksTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Target</th>
+                                <th>Method</th>
+                                <th>Expire</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attacksTableBody">
+                            <tr>
+                                <td colspan="5" class="no-attacks">No running attacks</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="table-footer">
+                        <div>Showing <span id="startEntry">0</span> to <span id="endEntry">0</span> of <span id="totalEntries">0</span> entries</div>
+                        <div class="pagination">
+                            <button onclick="previousPage()">Previous</button>
+                            <button onclick="nextPage()">Next</button>
+                        </div>
+                        <div>
+                            Show <select class="entries-select" id="entriesPerPage">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select> entries
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="scheduledTab" style="display: none;">
+                    <div class="no-attacks">No scheduled attacks</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Processing attack...</p>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // Attack methods data
+        const layer4Methods = {{ layer4_methods | tojson }};
+        const layer7Methods = {{ layer7_methods | tojson }};
+        
+        let currentAttackType = 'layer4';
+        let currentPage = 1;
+        let entriesPerPage = 10;
+        let runningAttacks = {};
+
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeMethods();
+            setupEventListeners();
+            updateMethods();
+            loadAttacks();
+            setInterval(loadAttacks, 2000); // Refresh every 2 seconds
+        });
+
+        function initializeMethods() {
+            const methodSelect = document.getElementById('method');
+            methodSelect.innerHTML = '<option value="">Select Method</option>';
+            
+            layer4Methods.forEach(method => {
+                const option = document.createElement('option');
+                option.value = method;
+                option.textContent = method;
+                methodSelect.appendChild(option);
+            });
+        }
+
+        function setupEventListeners() {
+            // Attack type buttons
+            document.querySelectorAll('.attack-type-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.attack-type-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentAttackType = this.dataset.type;
+                    updateMethods();
+                });
+            });
+
+            // Tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    const tabName = this.dataset.tab;
+                    document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+                    document.getElementById(tabName + 'Tab').style.display = 'block';
+                });
+            });
+
+            // Form submission
+            document.getElementById('attackForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                startAttack();
+            });
+
+            // Sliders
+            document.getElementById('threads').addEventListener('input', function() {
+                document.getElementById('threadsValue').textContent = this.value;
+            });
+
+            document.getElementById('rpc').addEventListener('input', function() {
+                document.getElementById('rpcValue').textContent = this.value;
+            });
+
+            // Entries per page
+            document.getElementById('entriesPerPage').addEventListener('change', function() {
+                entriesPerPage = parseInt(this.value);
+                currentPage = 1;
+                updateAttacksTable();
+            });
+        }
+
+        function updateMethods() {
+            const methodSelect = document.getElementById('method');
+            const rpcGroup = document.getElementById('rpcGroup');
+            const proxyGroup = document.getElementById('proxyGroup');
+            
+            methodSelect.innerHTML = '<option value="">Select Method</option>';
+            
+            if (currentAttackType === 'layer4') {
+                layer4Methods.forEach(method => {
+                    const option = document.createElement('option');
+                    option.value = method;
+                    option.textContent = method;
+                    methodSelect.appendChild(option);
+                });
+                rpcGroup.style.display = 'none';
+                proxyGroup.style.display = 'none';
+            } else if (currentAttackType === 'layer7') {
+                layer7Methods.forEach(method => {
+                    const option = document.createElement('option');
+                    option.value = method;
+                    option.textContent = method;
+                    methodSelect.appendChild(option);
+                });
+                rpcGroup.style.display = 'block';
+                proxyGroup.style.display = 'block';
+            } else {
+                // Telegram methods (placeholder)
+                const telegramMethods = ['TELEGRAM_SPAM', 'TELEGRAM_FLOOD'];
+                telegramMethods.forEach(method => {
+                    const option = document.createElement('option');
+                    option.value = method;
+                    option.textContent = method;
+                    methodSelect.appendChild(option);
+                });
+                rpcGroup.style.display = 'none';
+                proxyGroup.style.display = 'none';
+            }
+        }
+
+        async function startAttack() {
+            const formData = new FormData(document.getElementById('attackForm'));
+            const data = {
+                attack_type: currentAttackType,
+                method: formData.get('method'),
+                target: formData.get('target'),
+                port: formData.get('port') || '80',
+                duration: parseInt(formData.get('duration')) || 60,
+                threads: parseInt(formData.get('threads')) || 1,
+                rpc: parseInt(formData.get('rpc')) || 1,
+                proxy_type: parseInt(formData.get('proxy_type')) || 0
+            };
+
+            if (!data.method) {
+                showNotification('Please select an attack method', 'error');
+                return;
+            }
+
+            showLoading(true);
+
+            try {
+                const response = await fetch('/start_attack', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('Attack started successfully!', 'success');
+                    document.getElementById('attackForm').reset();
+                    document.getElementById('threads').value = 1;
+                    document.getElementById('threadsValue').textContent = '1';
+                    document.getElementById('rpc').value = 1;
+                    document.getElementById('rpcValue').textContent = '1';
+                } else {
+                    showNotification('Failed to start attack: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showNotification('Error starting attack: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function loadAttacks() {
+            try {
+                const response = await fetch('/get_attacks');
+                runningAttacks = await response.json();
+                updateAttacksTable();
+            } catch (error) {
+                console.error('Error loading attacks:', error);
+            }
+        }
+
+        function updateAttacksTable() {
+            const tableBody = document.getElementById('attacksTableBody');
+            const runningCount = document.getElementById('runningCount');
+            
+            const attacks = Object.values(runningAttacks);
+            const runningAttacksCount = attacks.filter(attack => attack.status === 'running').length;
+            
+            runningCount.textContent = runningAttacksCount;
+
+            // Pagination
+            const startIndex = (currentPage - 1) * entriesPerPage;
+            const endIndex = startIndex + entriesPerPage;
+            const paginatedAttacks = attacks.slice(startIndex, endIndex);
+
+            document.getElementById('startEntry').textContent = attacks.length > 0 ? startIndex + 1 : 0;
+            document.getElementById('endEntry').textContent = Math.min(endIndex, attacks.length);
+            document.getElementById('totalEntries').textContent = attacks.length;
+
+            if (attacks.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="no-attacks">No running attacks</td></tr>';
+                return;
+            }
+
+            tableBody.innerHTML = '';
+            paginatedAttacks.forEach(attack => {
+                const row = document.createElement('tr');
+                const expireTime = new Date(attack.end_time * 1000).toLocaleTimeString();
+                
+                row.innerHTML = `
+                    <td>${attack.id}</td>
+                    <td>${attack.target}:${attack.port}</td>
+                    <td>${attack.method}</td>
+                    <td>${expireTime}</td>
+                    <td>
+                        ${attack.status === 'running' ? 
+                            `<button class="action-btn" onclick="stopAttack('${attack.id}')">Stop</button>` : 
+                            `<span class="status-badge status-${attack.status}">${attack.status}</span>`
+                        }
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        async function stopAttack(attackId) {
+            try {
+                const response = await fetch(`/stop_attack/${attackId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('Attack stopped successfully!', 'success');
+                } else {
+                    showNotification('Failed to stop attack: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showNotification('Error stopping attack: ' + error.message, 'error');
+            }
+        }
+
+        async function stopAllAttacks() {
+            try {
+                const response = await fetch('/stop_all_attacks');
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('All attacks stopped successfully!', 'success');
+                } else {
+                    showNotification('Failed to stop all attacks', 'error');
+                }
+            } catch (error) {
+                showNotification('Error stopping all attacks: ' + error.message, 'error');
+            }
+        }
+
+        function showScheduled() {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('[data-tab="scheduled"]').classList.add('active');
+            
+            document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+            document.getElementById('scheduledTab').style.display = 'block';
+        }
+
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                updateAttacksTable();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(Object.keys(runningAttacks).length / entriesPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                updateAttacksTable();
+            }
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
